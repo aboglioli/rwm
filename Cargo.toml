@@ -1,0 +1,11 @@
+[package]
+name = "rwm"
+version = "0.1.0"
+authors = ["Alan Boglioli <alan.boglioli@gmail.com>"]
+edition = "2018"
+
+[features]
+xlib = []
+
+[dependencies]
+x11 = { version = "2.18.2", features = ["xlib"] }
