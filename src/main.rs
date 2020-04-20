@@ -71,14 +71,12 @@ fn main() {
             0,
         );
 
-        let mut event: xlib::XEvent = mem::uninitialized();
-        let mut start: xlib::XButtonEvent = mem::uninitialized();
-        start.subwindow = 0;
-        let mut attr: xlib::XWindowAttributes = mem::uninitialized();
+        let mut event: xlib::XEvent = mem::MaybeUninit::uninit().assume_init();
+        let mut start: xlib::XButtonEvent = mem::MaybeUninit::uninit().assume_init();
+        let mut attr: xlib::XWindowAttributes = mem::MaybeUninit::uninit().assume_init();
 
         loop {
             xlib::XNextEvent(display, &mut event);
-            let event_type = event.get_type();
 
             match event.get_type() {
                 xlib::KeyPress => {
