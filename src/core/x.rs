@@ -175,6 +175,34 @@ impl Display {
     }
 
     // Events
+    pub fn grab_key(
+        &self,
+        keycode: i32,
+        modifiers: u32,
+        grab_window: window::WindowID,
+        owner_events: Bool,
+        pointer_mode: i32,
+        keyboard_mode: i32,
+    ) {
+        unsafe {
+            xlib::XGrabKey(
+                self.ptr,
+                keycode,
+                modifiers,
+                grab_window,
+                owner_events,
+                pointer_mode,
+                keyboard_mode,
+            );
+        }
+    }
+
+    pub fn ungrab_key(&self, keycode: i32, modifiers: u32, grab_window: window::WindowID) {
+        unsafe {
+            xlib::XUngrabKey(self.ptr, keycode, modifiers, grab_window);
+        }
+    }
+
     pub fn grab_button(
         &self,
         button: u32,
@@ -200,6 +228,12 @@ impl Display {
                 confine_to,
                 cursor,
             );
+        }
+    }
+
+    pub fn ungrab_button(&self, button: u32, modifiers: u32, grab_window: window::WindowID) {
+        unsafe {
+            xlib::XUngrabButton(self.ptr, button, modifiers, grab_window);
         }
     }
 

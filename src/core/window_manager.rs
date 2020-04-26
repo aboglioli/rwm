@@ -1,13 +1,14 @@
+use std::collections::HashMap;
+
 use crate::core::{
     config,
     event::{self, Event},
-    window::{self, Window},
-    x,
+    window, x,
 };
 
 pub struct WindowManager {
     display: x::Display,
-    windows: Vec<window::Window>,
+    windows: HashMap<window::WindowID, window::Window>,
     cleaned: bool,
 }
 
@@ -15,7 +16,7 @@ impl WindowManager {
     pub fn new() -> Result<WindowManager, String> {
         Ok(WindowManager {
             display: x::Display::open()?,
-            windows: Vec::new(),
+            windows: HashMap::new(),
             cleaned: false,
         })
     }
@@ -25,12 +26,14 @@ impl WindowManager {
 
         for win_id in window_ids {
             let attrs = self.display.get_window_attributes(win_id)?;
-            self.windows.push(Window::new(win_id, attrs))
+            let mut win = window::Window::new(win_id);
+            win.set_attributes(attrs);
+            self.windows.insert(win_id, win);
         }
         Ok(())
     }
 
-    pub fn run(&self) -> Result<(), String> {
+    pub fn run(&mut self) -> Result<(), String> {
         self.display.grab_button(
             1,
             0,
@@ -79,8 +82,7 @@ impl WindowManager {
         Ok(frame)
     }
 
-    pub fn on_create(&self, create: event::CreateWindowEvent) {
-    }
+    pub fn on_create(&self, create: event::CreateWindowEvent) {}
 
     pub fn on_configure_request(&self, req: event::ConfigureRequestEvent) {
         let mut changes = window::WindowChanges {
@@ -96,17 +98,28 @@ impl WindowManager {
             .configure_window(req.window, req.value_mask, &mut changes);
     }
 
-    pub fn on_map_request(&self, map_req: event::MapRequestEvent) {
+    pub fn on_map_request(&mut self, map_req: event::MapRequestEvent) {
         if let Ok(frame) = self.create_frame(map_req.window) {
+            println!("- Frame created: {}", frame);
             self.display.map_window(map_req.window);
+
+            if let Some(win) = self.windows.get_mut(&map_req.window) {
+                win.set_frame(frame);
+            } else {
+                let mut win = window::Window::new(map_req.window);
+                win.set_frame(frame);
+                if let Ok(attrs) = self.display.get_window_attributes(win.id) {
+                    win.set_attributes(attrs);
+                }
+                self.windows.insert(win.id, win);
+            };
         }
+        println!("- Mapped: {}", map_req.window);
     }
 
-    pub fn on_destroy(&self, destroy: event::DestroyWindowEvent) {
-    }
+    pub fn on_destroy(&self, destroy: event::DestroyWindowEvent) {}
 
-    pub fn on_reparent(&self, reparent: event::ReparentEvent) {
-    }
+    pub fn on_reparent(&self, reparent: event::ReparentEvent) {}
 
     pub fn cleanup(&mut self) {
         if !self.cleaned {
