@@ -11,6 +11,7 @@ pub struct Display {
 }
 
 impl Display {
+    // Open display
     pub fn open() -> Result<Display, String> {
         unsafe {
             // Open connection
@@ -22,20 +23,20 @@ impl Display {
             // Get root window
             let root = xlib::XDefaultRootWindow(ptr);
 
-            // Check other WMs
+            let display = Display { ptr, root };
+
+            // Global error handler
             xlib::XSetErrorHandler(Some(error::error_handler));
-            xlib::XSelectInput(
-                ptr,
-                root,
-                xlib::SubstructureRedirectMask | xlib::SubstructureNotifyMask,
-            );
-            xlib::XSync(ptr, 0);
+
+            // Check other WMs
+            display.select_input(display.root());
+            display.sync();
 
             if error::last_error() == xlib::BadAccess {
                 return Err("Another WM is running".to_string());
             }
 
-            return Ok(Display { ptr, root });
+            return Ok(display);
         }
     }
 
@@ -43,45 +44,121 @@ impl Display {
         self.root
     }
 
-    pub fn get_windows(&self) -> Result<Vec<window::Window>, String> {
-        let mut windows = Vec::new();
-
+    pub fn create_simple_window(
+        &self,
+        parent: window::WindowID,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+        border_width: u32,
+        border: u64,
+        background: u64,
+    ) -> window::WindowID {
         unsafe {
-            let mut d1 = mem::MaybeUninit::uninit().assume_init();
-            let mut d2 = mem::MaybeUninit::uninit().assume_init();
-            let mut wins = mem::MaybeUninit::uninit().assume_init();
+            xlib::XCreateSimpleWindow(
+                self.ptr,
+                parent,
+                x,
+                y,
+                width,
+                height,
+                border_width,
+                border,
+                background,
+            )
+        }
+    }
+
+    pub fn select_input(&self, w: window::WindowID) {
+        unsafe {
+            xlib::XSelectInput(
+                self.ptr,
+                w,
+                xlib::SubstructureRedirectMask | xlib::SubstructureNotifyMask,
+            );
+        }
+    }
+
+    pub fn add_to_save_set(&self, w: window::WindowID) {
+        unsafe {
+            xlib::XAddToSaveSet(self.ptr, w);
+        }
+    }
+
+    pub fn map_window(&self, w: window::WindowID) {
+        unsafe {
+            xlib::XMapWindow(self.ptr, w);
+        }
+    }
+
+    pub fn reparent_window(&self, w: window::WindowID, parent: window::WindowID) {
+        unsafe {
+            xlib::XReparentWindow(self.ptr, w, parent, 0, 0);
+        }
+    }
+
+    pub fn get_window_attributes(
+        &self,
+        w: window::WindowID,
+    ) -> Result<window::WindowAttributes, String> {
+        unsafe {
+            let mut attrs = mem::MaybeUninit::uninit().assume_init();
+            if xlib::XGetWindowAttributes(self.ptr, w, &mut attrs) == 0 {
+                return Err("XGetWindowAttributes failed".to_string());
+            }
+            Ok(attrs)
+        }
+    }
+
+    pub fn sync(&self) {
+        unsafe {
+            xlib::XSync(self.ptr, 0);
+        }
+    }
+
+    pub fn query_tree(
+        &self,
+        w: window::WindowID,
+    ) -> Result<(window::WindowID, window::WindowID, Vec<window::WindowID>), String> {
+        unsafe {
+            let mut root_return = mem::MaybeUninit::uninit().assume_init();
+            let mut parent_return = mem::MaybeUninit::uninit().assume_init();
+            let mut w_ptr = mem::MaybeUninit::uninit().assume_init();
             let mut num = 0;
 
-            if xlib::XQueryTree(self.ptr, self.root, &mut d1, &mut d2, &mut wins, &mut num) == 0 {
+            if xlib::XQueryTree(
+                self.ptr,
+                self.root,
+                &mut root_return,
+                &mut parent_return,
+                &mut w_ptr,
+                &mut num,
+            ) == 0
+            {
                 return Err("XQueryTree failed".to_string());
             }
 
+            let mut win_ids = Vec::new();
             for i in 0..num {
                 let i = i as isize;
-                let w = *wins.offset(i as isize);
-                let mut attrs = mem::MaybeUninit::uninit().assume_init();
-
-                if xlib::XGetWindowAttributes(self.ptr, w, &mut attrs) == 0 {
-                    return Err("XGetWindowAttributes failed".to_string());
-                }
-
-                let mut window = window::Window::new(w);
-                window.attrs = Some(attrs);
-                windows.push(window);
+                let w = *w_ptr.offset(i);
+                win_ids.push(w);
             }
-        }
 
-        Ok(windows)
+            Ok((root_return, parent_return, win_ids))
+        }
     }
 
+    // Window configuration and move/resize
     pub fn configure_window(
         &self,
         w: window::WindowID,
-        value_mask: u32,
+        value_mask: u64,
         changes: &mut window::WindowChanges,
     ) {
         unsafe {
-            xlib::XConfigureWindow(self.ptr, w, value_mask, changes);
+            xlib::XConfigureWindow(self.ptr, w, value_mask as u32, changes);
         }
     }
 
@@ -97,6 +174,7 @@ impl Display {
         }
     }
 
+    // Events
     pub fn grab_button(
         &self,
         button: u32,

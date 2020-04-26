@@ -7,11 +7,11 @@ pub type WindowChanges = xlib::XWindowChanges;
 #[derive(Debug)]
 pub struct Window {
     pub id: WindowID,
-    pub attrs: Option<WindowAttributes>,
+    pub attrs: WindowAttributes,
 }
 
 impl Window {
-    pub fn new(w: WindowID) -> Window {
-        Window { id: w, attrs: None }
+    pub fn new(id: WindowID, attrs: WindowAttributes) -> Window {
+        Window { id, attrs }
     }
 }
