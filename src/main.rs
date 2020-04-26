@@ -1,8 +1,11 @@
 mod core;
-use crate::core::wm::WindowManager;
+use crate::core::window_manager::WindowManager;
 
 fn main() -> Result<(), String> {
-    let window_manager = WindowManager::new()?;
-    window_manager.run()?;
+    let mut wm = WindowManager::new()?;
+    wm.scan()?;
+    wm.run()?;
+    wm.cleanup();
+
     Ok(())
 }
