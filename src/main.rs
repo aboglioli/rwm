@@ -1,11 +1,12 @@
 mod core;
-use crate::core::window_manager::WindowManager;
+use crate::core::{window_manager::WindowManager, x};
 
 fn main() -> Result<(), String> {
-    let mut wm = WindowManager::new()?;
+    let display = x::Display::open()?;
+
+    let mut wm = WindowManager::new(&display);
     wm.scan()?;
     wm.run()?;
-    wm.cleanup();
 
     Ok(())
 }

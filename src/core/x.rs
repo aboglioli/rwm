@@ -10,6 +10,7 @@ pub struct Display {
     root: window::WindowID,
 }
 
+#[allow(dead_code)]
 impl Display {
     // Open display
     pub fn open() -> Result<Display, String> {
@@ -44,6 +45,7 @@ impl Display {
         self.root
     }
 
+    // Global
     pub fn create_simple_window(
         &self,
         parent: window::WindowID,
@@ -80,37 +82,6 @@ impl Display {
         }
     }
 
-    pub fn add_to_save_set(&self, w: window::WindowID) {
-        unsafe {
-            xlib::XAddToSaveSet(self.ptr, w);
-        }
-    }
-
-    pub fn map_window(&self, w: window::WindowID) {
-        unsafe {
-            xlib::XMapWindow(self.ptr, w);
-        }
-    }
-
-    pub fn reparent_window(&self, w: window::WindowID, parent: window::WindowID) {
-        unsafe {
-            xlib::XReparentWindow(self.ptr, w, parent, 0, 0);
-        }
-    }
-
-    pub fn get_window_attributes(
-        &self,
-        w: window::WindowID,
-    ) -> Result<window::WindowAttributes, String> {
-        unsafe {
-            let mut attrs = mem::MaybeUninit::uninit().assume_init();
-            if xlib::XGetWindowAttributes(self.ptr, w, &mut attrs) == 0 {
-                return Err("XGetWindowAttributes failed".to_string());
-            }
-            Ok(attrs)
-        }
-    }
-
     pub fn sync(&self) {
         unsafe {
             xlib::XSync(self.ptr, 0);
@@ -129,7 +100,7 @@ impl Display {
 
             if xlib::XQueryTree(
                 self.ptr,
-                self.root,
+                w,
                 &mut root_return,
                 &mut parent_return,
                 &mut w_ptr,
@@ -171,6 +142,37 @@ impl Display {
     pub fn resize_window(&self, w: window::WindowID, width: u32, height: u32) {
         unsafe {
             xlib::XResizeWindow(self.ptr, w, width, height);
+        }
+    }
+
+    pub fn add_to_save_set(&self, w: window::WindowID) {
+        unsafe {
+            xlib::XAddToSaveSet(self.ptr, w);
+        }
+    }
+
+    pub fn map_window(&self, w: window::WindowID) {
+        unsafe {
+            xlib::XMapWindow(self.ptr, w);
+        }
+    }
+
+    pub fn reparent_window(&self, w: window::WindowID, parent: window::WindowID) {
+        unsafe {
+            xlib::XReparentWindow(self.ptr, w, parent, 0, 0);
+        }
+    }
+
+    pub fn get_window_attributes(
+        &self,
+        w: window::WindowID,
+    ) -> Result<window::WindowAttributes, String> {
+        unsafe {
+            let mut attrs = mem::MaybeUninit::uninit().assume_init();
+            if xlib::XGetWindowAttributes(self.ptr, w, &mut attrs) == 0 {
+                return Err("XGetWindowAttributes failed".to_string());
+            }
+            Ok(attrs)
         }
     }
 

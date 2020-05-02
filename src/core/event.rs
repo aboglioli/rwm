@@ -11,14 +11,14 @@ pub type MotionEvent = xlib::XMotionEvent;
 
 pub enum Event {
     Create(CreateWindowEvent),
+    Reparent(ReparentEvent),
+    Destroy(DestroyWindowEvent),
+
     ConfigureRequest(ConfigureRequestEvent),
     MapRequest(MapRequestEvent),
-    Destroy(DestroyWindowEvent),
-    Reparent(ReparentEvent),
 
     KeyPress(KeyEvent),
     KeyRelease(KeyEvent),
-
     ButtonPress(ButtonEvent),
     ButtonRelease(ButtonEvent),
     Motion(ButtonEvent, MotionEvent),
@@ -47,10 +47,12 @@ impl From<xlib::XEvent> for Event {
     }
 }
 
+#[allow(dead_code)]
 pub const MODKEY: u32 = xlib::Mod1Mask;
 
 pub const BUTTON_PRESS_MASK: u32 = xlib::ButtonPressMask as u32;
 pub const BUTTON_RELEASE_MASK: u32 = xlib::ButtonReleaseMask as u32;
 pub const POINTER_MOTION_MASK: u32 = xlib::PointerMotionMask as u32;
 pub const GRAB_MODE_ASYNC: i32 = xlib::GrabModeAsync;
+#[allow(dead_code)]
 pub const GRAB_MODE_SYNC: i32 = xlib::GrabModeSync;
