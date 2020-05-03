@@ -37,7 +37,7 @@ impl Display {
                 return Err("Another WM is running".to_string());
             }
 
-            return Ok(display);
+            Ok(display)
         }
     }
 
