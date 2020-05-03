@@ -6,11 +6,12 @@ pub type WindowAttributes = xlib::XWindowAttributes;
 pub type WindowChanges = xlib::XWindowChanges;
 
 pub struct Window<'a> {
-    pub id: WindowID,
-    pub attrs: WindowAttributes,
-    pub frame: WindowID,
-
+    // Open display
     display: &'a x::Display,
+
+    id: WindowID,
+    attrs: WindowAttributes,
+    frame: WindowID,
 }
 
 #[allow(dead_code)]
@@ -41,18 +42,23 @@ impl<'a> Window<'a> {
         })
     }
 
+    pub fn id(&self) -> WindowID {
+        self.id
+    }
+
+
     pub fn set_position(&mut self, x: i32, y: i32) {
         self.attrs.x = x;
         self.attrs.y = y;
-        self.display.move_window(self.id, x, y);
         self.display.move_window(self.frame, x, y);
+        // self.display.move_window(self.id, x, y);
     }
 
     pub fn set_size(&mut self, w: u32, h: u32) {
         self.attrs.width = w as i32;
         self.attrs.height = h as i32;
-        self.display.resize_window(self.id, w, h);
         self.display.resize_window(self.frame, w, h);
+        self.display.resize_window(self.id, w, h);
     }
 
     pub fn map(&self) {

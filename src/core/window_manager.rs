@@ -1,32 +1,47 @@
-use std::collections::HashMap;
-
 use crate::core::{
     event::{self, Event},
+    layout,
     window, x,
 };
 
+use layout::Layout;
+
 pub struct WindowManager<'a> {
     display: &'a x::Display,
-    windows: HashMap<window::WindowID, window::Window<'a>>,
+
+    windows: Vec<window::Window<'a>>,
+    selected_window: Option<usize>,
+
+    layouts: Vec<Box<dyn layout::Layout>>,
+    selected_layout: usize,
 }
 
 impl<'a> WindowManager<'a> {
     pub fn new(display: &'a x::Display) -> WindowManager {
         WindowManager {
             display,
-            windows: HashMap::new(),
+
+            windows: Vec::new(),
+            selected_window: None,
+
+            layouts: vec![Box::new(layout::ColumnLayout(800, 600)), Box::new(layout::RowLayout(800, 600))],
+            selected_layout: 1,
         }
     }
 
-    pub fn scan(&mut self) -> Result<(), String> {
+    pub fn scan(&mut self) -> Result<usize, String> {
         let (_, _, window_ids) = self.display.query_tree(self.display.root())?;
+        let len = window_ids.len();
 
         for win_id in window_ids {
-            if let Ok(win) = window::Window::new(&self.display, win_id) {
-                self.windows.insert(win_id, win);
+            if let Ok(win) = window::Window::new(self.display, win_id) {
+                self.windows.push(win);
             }
         }
-        Ok(())
+
+        self.layouts[self.selected_layout].apply(&mut self.windows);
+
+        Ok(len)
     }
 
     pub fn run(&mut self) -> Result<(), String> {
@@ -51,7 +66,7 @@ impl<'a> WindowManager<'a> {
         }
     }
 
-    pub fn on_configure_request(&self, req: event::ConfigureRequestEvent) {
+    pub fn on_configure_request(&mut self, req: event::ConfigureRequestEvent) {
         let mut changes = window::WindowChanges {
             x: req.x,
             y: req.y,
@@ -61,6 +76,7 @@ impl<'a> WindowManager<'a> {
             sibling: req.above,
             stack_mode: req.detail,
         };
+
         self.display
             .configure_window(req.window, req.value_mask, &mut changes);
     }
@@ -68,16 +84,19 @@ impl<'a> WindowManager<'a> {
     pub fn on_map_request(&mut self, map_req: event::MapRequestEvent) {
         let win_id = map_req.window;
 
-        if let Some(win) = self.windows.get(&win_id) {
-            win.map();
-        } else {
-            if let Ok(win) = window::Window::new(&self.display, win_id) {
-                self.windows.insert(win_id, win);
+        for win in self.windows.iter() {
+            if win.id() == win_id {
+                win.map();
+                return;
             }
+        }
+
+        if let Ok(win) = window::Window::new(self.display, win_id) {
+            self.windows.push(win);
         }
     }
 }
 
-impl<'a> Drop for WindowManager<'a> {
-    fn drop(&mut self) {}
-}
+// impl<'a> Drop for WindowManager<'a> {
+//     fn drop(&mut self) {}
+// }
