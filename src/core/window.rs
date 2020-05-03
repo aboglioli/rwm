@@ -46,7 +46,6 @@ impl<'a> Window<'a> {
         self.id
     }
 
-
     pub fn set_position(&mut self, x: i32, y: i32) {
         self.attrs.x = x;
         self.attrs.y = y;

@@ -1,6 +1,5 @@
 mod core;
 use crate::core::{window_manager::WindowManager, x};
-use crate::core::layout;
 
 fn main() -> Result<(), String> {
     let display = x::Display::open()?;

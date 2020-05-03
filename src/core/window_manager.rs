@@ -1,15 +1,13 @@
 use crate::core::{
     event::{self, Event},
-    layout,
-    window, x,
+    layout, window, x,
 };
-
-use layout::Layout;
+use std::collections::HashMap;
 
 pub struct WindowManager<'a> {
     display: &'a x::Display,
 
-    windows: Vec<window::Window<'a>>,
+    windows: HashMap<window::WindowID, window::Window<'a>>,
     selected_window: Option<usize>,
 
     layouts: Vec<Box<dyn layout::Layout>>,
@@ -17,14 +15,17 @@ pub struct WindowManager<'a> {
 }
 
 impl<'a> WindowManager<'a> {
-    pub fn new(display: &'a x::Display) -> WindowManager {
+    pub fn new(display: &x::Display) -> WindowManager {
         WindowManager {
             display,
 
-            windows: Vec::new(),
+            windows: HashMap::new(),
             selected_window: None,
 
-            layouts: vec![Box::new(layout::ColumnLayout(800, 600)), Box::new(layout::RowLayout(800, 600))],
+            layouts: vec![
+                Box::new(layout::ColumnLayout(800, 600)),
+                Box::new(layout::RowLayout(800, 600)),
+            ],
             selected_layout: 1,
         }
     }
@@ -35,11 +36,11 @@ impl<'a> WindowManager<'a> {
 
         for win_id in window_ids {
             if let Ok(win) = window::Window::new(self.display, win_id) {
-                self.windows.push(win);
+                self.windows.insert(win_id, win);
             }
         }
 
-        self.layouts[self.selected_layout].apply(&mut self.windows);
+        self.layouts[self.selected_layout].apply(Box::new(self.windows.values_mut()));
 
         Ok(len)
     }
@@ -84,15 +85,13 @@ impl<'a> WindowManager<'a> {
     pub fn on_map_request(&mut self, map_req: event::MapRequestEvent) {
         let win_id = map_req.window;
 
-        for win in self.windows.iter() {
-            if win.id() == win_id {
-                win.map();
-                return;
-            }
+        if let Some(win) = self.windows.get_mut(&win_id) {
+            win.map();
+            return;
         }
 
         if let Ok(win) = window::Window::new(self.display, win_id) {
-            self.windows.push(win);
+            self.windows.insert(win_id, win);
         }
     }
 }
