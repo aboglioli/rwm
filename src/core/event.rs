@@ -1,27 +1,38 @@
 use x11::xlib;
 
 pub type CreateWindowEvent = xlib::XCreateWindowEvent;
+pub type ConfigureEvent = xlib::XConfigureEvent;
+pub type ReparentEvent = xlib::XReparentEvent;
+pub type MapEvent = xlib::XMapEvent;
+pub type UnmapEvent = xlib::XUnmapEvent;
+pub type DestroyWindowEvent = xlib::XDestroyWindowEvent;
+
 pub type ConfigureRequestEvent = xlib::XConfigureRequestEvent;
 pub type MapRequestEvent = xlib::XMapRequestEvent;
-pub type DestroyWindowEvent = xlib::XDestroyWindowEvent;
-pub type ReparentEvent = xlib::XReparentEvent;
+
 pub type KeyEvent = xlib::XKeyEvent;
 pub type ButtonEvent = xlib::XButtonEvent;
 pub type MotionEvent = xlib::XMotionEvent;
 
 pub enum Event {
-    Create(CreateWindowEvent),
-    Reparent(ReparentEvent),
-    Destroy(DestroyWindowEvent),
+    // Notify
+    CreateNotify(CreateWindowEvent),
+    ConfigureNotify(ConfigureEvent),
+    ReparentNotify(ReparentEvent),
+    MapNotify(MapEvent),
+    UnmapNotify(UnmapEvent),
+    DestroyNotify(DestroyWindowEvent),
 
+    // Request
     ConfigureRequest(ConfigureRequestEvent),
     MapRequest(MapRequestEvent),
 
+    // Keys
     KeyPress(KeyEvent),
     KeyRelease(KeyEvent),
     ButtonPress(ButtonEvent),
     ButtonRelease(ButtonEvent),
-    Motion(ButtonEvent, MotionEvent),
+    MotionNotify(ButtonEvent, MotionEvent),
     Unknown,
 }
 
@@ -29,18 +40,21 @@ impl From<xlib::XEvent> for Event {
     fn from(event: xlib::XEvent) -> Self {
         unsafe {
             match event.get_type() {
-                xlib::CreateNotify => Self::Create(event.create_window),
+                xlib::CreateNotify => Self::CreateNotify(event.create_window),
+                xlib::ConfigureNotify => Self::ConfigureNotify(event.configure),
+                xlib::ReparentNotify => Self::ReparentNotify(event.reparent),
+                xlib::MapNotify => Self::MapNotify(event.map),
+                xlib::UnmapNotify => Self::UnmapNotify(event.unmap),
+                xlib::DestroyNotify => Self::DestroyNotify(event.destroy_window),
+
                 xlib::ConfigureRequest => Self::ConfigureRequest(event.configure_request),
                 xlib::MapRequest => Self::MapRequest(event.map_request),
-                xlib::DestroyNotify => Self::Destroy(event.destroy_window),
-                xlib::ReparentNotify => Self::Reparent(event.reparent),
 
                 xlib::KeyPress => Self::KeyPress(event.key),
                 xlib::KeyRelease => Self::KeyRelease(event.key),
-
                 xlib::ButtonPress => Self::ButtonPress(event.button),
                 xlib::ButtonRelease => Self::ButtonRelease(event.button),
-                xlib::MotionNotify => Self::Motion(event.button, event.motion),
+                xlib::MotionNotify => Self::MotionNotify(event.button, event.motion),
                 _ => Self::Unknown,
             }
         }

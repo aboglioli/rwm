@@ -8,7 +8,8 @@ pub trait Layout {
 pub struct ColumnLayout(pub u32, pub u32);
 impl Layout for ColumnLayout {
     fn apply<'a>(&self, windows: Box<dyn Iterator<Item = &mut window::Window> + 'a>) {
-        if let (_, Some(len)) = windows.size_hint() {
+        if let (_, Some(mut len)) = windows.size_hint() {
+            len = if len > 0 { len } else { 1 };
             let (w, h) = (self.0 / len as u32, self.1);
             for (i, win) in windows.enumerate() {
                 let i = i as i32;
@@ -23,7 +24,8 @@ pub struct RowLayout(pub u32, pub u32);
 
 impl Layout for RowLayout {
     fn apply<'a>(&self, windows: Box<dyn Iterator<Item = &mut window::Window> + 'a>) {
-        if let (_, Some(len)) = windows.size_hint() {
+        if let (_, Some(mut len)) = windows.size_hint() {
+            len = if len > 0 { len } else { 1 };
             let (w, h) = (self.0, self.1 / len as u32);
             for (i, win) in windows.enumerate() {
                 let i = i as i32;

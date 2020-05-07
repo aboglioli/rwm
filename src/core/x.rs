@@ -4,6 +4,7 @@ use x11::xlib;
 use crate::core::{cursor, error, event, window};
 
 pub type Bool = i32;
+pub const IS_VIEWABLE: i32 = xlib::IsViewable;
 
 pub struct Display {
     ptr: *mut xlib::Display,
@@ -72,6 +73,12 @@ impl Display {
         }
     }
 
+    pub fn destroy_window(&self, w: window::WindowID) {
+        unsafe {
+            xlib::XDestroyWindow(self.ptr, w);
+        }
+    }
+
     pub fn select_input(&self, w: window::WindowID) {
         unsafe {
             xlib::XSelectInput(
@@ -93,6 +100,8 @@ impl Display {
         w: window::WindowID,
     ) -> Result<(window::WindowID, window::WindowID, Vec<window::WindowID>), String> {
         unsafe {
+            xlib::XGrabServer(self.ptr);
+
             let mut root_return = mem::MaybeUninit::uninit().assume_init();
             let mut parent_return = mem::MaybeUninit::uninit().assume_init();
             let mut w_ptr = mem::MaybeUninit::uninit().assume_init();
@@ -116,6 +125,8 @@ impl Display {
                 let w = *w_ptr.offset(i);
                 win_ids.push(w);
             }
+            xlib::XFree(w_ptr as *mut core::ffi::c_void);
+            xlib::XUngrabServer(self.ptr);
 
             Ok((root_return, parent_return, win_ids))
         }
@@ -151,15 +162,27 @@ impl Display {
         }
     }
 
+    pub fn remove_from_save_set(&self, w: window::WindowID) {
+        unsafe {
+            xlib::XRemoveFromSaveSet(self.ptr, w);
+        }
+    }
+
     pub fn map_window(&self, w: window::WindowID) {
         unsafe {
             xlib::XMapWindow(self.ptr, w);
         }
     }
 
-    pub fn reparent_window(&self, w: window::WindowID, parent: window::WindowID) {
+    pub fn unmap_window(&self, w: window::WindowID) {
         unsafe {
-            xlib::XReparentWindow(self.ptr, w, parent, 0, 0);
+            xlib::XUnmapWindow(self.ptr, w);
+        }
+    }
+
+    pub fn reparent_window(&self, w: window::WindowID, parent: window::WindowID, x: i32, y: i32) {
+        unsafe {
+            xlib::XReparentWindow(self.ptr, w, parent, x, y);
         }
     }
 

@@ -8,7 +8,7 @@ pub struct WindowManager<'a> {
     display: &'a x::Display,
 
     windows: HashMap<window::WindowID, window::Window<'a>>,
-    selected_window: Option<usize>,
+    focused_window: Option<usize>,
 
     layouts: Vec<Box<dyn layout::Layout>>,
     selected_layout: usize,
@@ -20,7 +20,7 @@ impl<'a> WindowManager<'a> {
             display,
 
             windows: HashMap::new(),
-            selected_window: None,
+            focused_window: None,
 
             layouts: vec![
                 Box::new(layout::ColumnLayout(800, 600)),
@@ -35,39 +35,42 @@ impl<'a> WindowManager<'a> {
         let len = window_ids.len();
 
         for win_id in window_ids {
-            if let Ok(win) = window::Window::new(self.display, win_id) {
-                self.windows.insert(win_id, win);
+            let attrs = self.display.get_window_attributes(win_id)?;
+
+            if attrs.override_redirect > 0 || attrs.map_state != x::IS_VIEWABLE {
+                continue;
             }
+
+            let mut win = window::Window::new(self.display, win_id, attrs);
+            win.frame();
+            self.windows.insert(win_id, win);
         }
 
-        self.layouts[self.selected_layout].apply(Box::new(self.windows.values_mut()));
+        self.apply_selected_layout();
 
         Ok(len)
     }
 
+    pub fn grab_keys(&self) {}
+
     pub fn run(&mut self) -> Result<(), String> {
-        self.display.grab_button(
-            1,
-            0,
-            self.display.root(),
-            1,
-            event::BUTTON_PRESS_MASK | event::BUTTON_RELEASE_MASK | event::POINTER_MOTION_MASK,
-            event::GRAB_MODE_ASYNC,
-            event::GRAB_MODE_ASYNC,
-            0,
-            0,
-        );
+        self.grab_keys();
 
         loop {
             match self.display.next_event() {
                 Event::ConfigureRequest(configure_req) => self.on_configure_request(configure_req),
-                Event::MapRequest(map_req) => self.on_map_request(map_req),
+                Event::MapRequest(req) => self.on_map_request(req),
+                Event::UnmapNotify(unmap_req) => self.on_unmap_notify(unmap_req),
                 _ => (),
             }
         }
     }
 
-    pub fn on_configure_request(&mut self, req: event::ConfigureRequestEvent) {
+    fn apply_selected_layout(&mut self) {
+        self.layouts[self.selected_layout].apply(Box::new(self.windows.values_mut()));
+    }
+
+    fn on_configure_request(&mut self, req: event::ConfigureRequestEvent) {
         let mut changes = window::WindowChanges {
             x: req.x,
             y: req.y,
@@ -82,20 +85,36 @@ impl<'a> WindowManager<'a> {
             .configure_window(req.window, req.value_mask, &mut changes);
     }
 
-    pub fn on_map_request(&mut self, map_req: event::MapRequestEvent) {
-        let win_id = map_req.window;
+    fn on_map_request(&mut self, req: event::MapRequestEvent) {
+        let win_id = req.window;
 
         if let Some(win) = self.windows.get_mut(&win_id) {
             win.map();
             return;
         }
 
-        if let Ok(win) = window::Window::new(self.display, win_id) {
-            self.windows.insert(win_id, win);
+        if let Ok(attrs) = self.display.get_window_attributes(win_id) {
+            if attrs.override_redirect > 0 || attrs.map_state != x::IS_VIEWABLE {
+                let mut win = window::Window::new(self.display, win_id, attrs);
+                win.frame();
+                win.map();
+                self.windows.insert(win_id, win);
+            }
         }
+
+        self.apply_selected_layout();
+    }
+
+    fn on_unmap_notify(&mut self, req: event::UnmapEvent) {
+        if req.event == self.display.root() {
+            return;
+        }
+
+        let win_id = req.window;
+        if let Some(mut win) = self.windows.remove(&win_id) {
+            win.unframe();
+        }
+
+        self.apply_selected_layout();
     }
 }
-
-// impl<'a> Drop for WindowManager<'a> {
-//     fn drop(&mut self) {}
-// }

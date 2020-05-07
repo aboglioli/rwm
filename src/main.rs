@@ -1,8 +1,8 @@
 mod core;
-use crate::core::{window_manager::WindowManager, x};
+use crate::core::{window_manager::WindowManager, x::Display};
 
 fn main() -> Result<(), String> {
-    let display = x::Display::open()?;
+    let display = Display::open()?;
 
     let mut wm = WindowManager::new(&display);
     println!("[RWM]");
