@@ -84,6 +84,10 @@ impl<'a> WindowManager<'a> {
             stack_mode: req.detail,
         };
 
+        if let Some(win) = self.windows.iter_mut().find(|win| win.id() == req.window) {
+            self.display.configure_window(win.frame(), req.value_mask, &mut changes);
+        }
+
         self.display
             .configure_window(req.window, req.value_mask, &mut changes);
     }
@@ -91,11 +95,9 @@ impl<'a> WindowManager<'a> {
     fn on_map_request(&mut self, req: event::MapRequestEvent) {
         let win_id = req.window;
 
-        for win in self.windows.iter() {
-            if win.id() == win_id {
-                win.map();
-                return;
-            }
+        if let Some(win) = self.windows.iter().find(|win| win.id() == win_id) {
+            win.map();
+            return;
         }
 
         if let Ok(attrs) = self.display.get_window_attributes(win_id) {

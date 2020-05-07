@@ -70,7 +70,7 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn unframe(&mut self) {
+    pub fn unframe(&self) {
         if let Some(frame) = self.frame {
             self.display.unmap_window(frame);
             self.display
