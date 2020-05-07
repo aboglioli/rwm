@@ -10,7 +10,14 @@ pub struct Window<'a> {
     display: &'a x::Display,
 
     id: WindowID,
-    attrs: WindowAttributes,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+
+    focused: bool,
+    marked: bool,
+
     frame: Option<WindowID>,
 }
 
@@ -20,7 +27,12 @@ impl<'a> Window<'a> {
         Window {
             display,
             id,
-            attrs,
+            x: attrs.x,
+            y: attrs.y,
+            width: attrs.width as u32,
+            height: attrs.height as u32,
+            focused: false,
+            marked: false,
             frame: None,
         }
     }
@@ -29,8 +41,8 @@ impl<'a> Window<'a> {
         self.id
     }
 
-    pub fn attrs(&self) -> WindowAttributes {
-        self.attrs
+    pub fn attrs(&self) -> (i32, i32, u32, u32) {
+        (self.x, self.y, self.width, self.height)
     }
 
     pub fn frame(&mut self) -> WindowID {
@@ -39,10 +51,10 @@ impl<'a> Window<'a> {
         } else {
             let frame = self.display.create_simple_window(
                 self.display.root(),
-                self.attrs.x,
-                self.attrs.y,
-                self.attrs.width as u32,
-                self.attrs.height as u32,
+                self.x,
+                self.y,
+                self.width as u32,
+                self.height as u32,
                 config::BORDER_WIDTH,
                 config::BORDER_COLOR,
                 config::BACKGROUND,
@@ -69,16 +81,44 @@ impl<'a> Window<'a> {
     }
 
     pub fn set_position(&mut self, x: i32, y: i32) {
-        self.attrs.x = x;
-        self.attrs.y = y;
+        self.x = x;
+        self.y = y;
         self.display.move_window(self.frame(), x, y);
     }
 
     pub fn set_size(&mut self, w: u32, h: u32) {
-        self.attrs.width = w as i32;
-        self.attrs.height = h as i32;
+        let w = w - 2 * config::BORDER_WIDTH;
+        let h = h - 2 * config::BORDER_WIDTH;
+
+        self.width = w;
+        self.height = h;
+
         self.display.resize_window(self.frame(), w, h);
         self.display.resize_window(self.id, w, h);
+    }
+
+    pub fn focus(&mut self) {
+        self.focused = true;
+        self.display
+            .set_window_border(self.frame(), config::FOCUSED_BORDER_COLOR);
+    }
+
+    pub fn unfocus(&mut self) {
+        self.focused = false;
+        self.display
+            .set_window_border(self.frame(), config::BORDER_COLOR);
+    }
+
+    pub fn mark(&mut self) {
+        self.marked = true;
+        self.display
+            .set_window_border(self.frame(), config::MARKED_BORDER_COLOR);
+    }
+
+    pub fn unmark(&mut self) {
+        self.marked = false;
+        self.display
+            .set_window_border(self.frame(), config::BORDER_COLOR);
     }
 
     pub fn map(&self) {

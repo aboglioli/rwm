@@ -222,6 +222,12 @@ impl Display {
         }
     }
 
+    pub fn set_window_border(&self, w: window::WindowID, color: u64) {
+        unsafe {
+            xlib::XSetWindowBorder(self.ptr, w, color);
+        }
+    }
+
     pub fn ungrab_key(&self, keycode: i32, modifiers: u32, grab_window: window::WindowID) {
         unsafe {
             xlib::XUngrabKey(self.ptr, keycode, modifiers, grab_window);

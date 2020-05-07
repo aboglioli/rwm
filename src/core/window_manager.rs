@@ -2,13 +2,11 @@ use crate::core::{
     event::{self, Event},
     layout, window, x,
 };
-use std::collections::HashMap;
 
 pub struct WindowManager<'a> {
     display: &'a x::Display,
 
-    windows: HashMap<window::WindowID, window::Window<'a>>,
-    focused_window: Option<usize>,
+    windows: Vec<window::Window<'a>>,
 
     layouts: Vec<Box<dyn layout::Layout>>,
     selected_layout: usize,
@@ -19,8 +17,7 @@ impl<'a> WindowManager<'a> {
         WindowManager {
             display,
 
-            windows: HashMap::new(),
-            focused_window: None,
+            windows: Vec::new(),
 
             layouts: vec![
                 Box::new(layout::ColumnLayout(800, 600)),
@@ -34,6 +31,7 @@ impl<'a> WindowManager<'a> {
         let (_, _, window_ids) = self.display.query_tree(self.display.root())?;
         let len = window_ids.len();
 
+        let mut focused_window = false;
         for win_id in window_ids {
             let attrs = self.display.get_window_attributes(win_id)?;
 
@@ -43,7 +41,12 @@ impl<'a> WindowManager<'a> {
 
             let mut win = window::Window::new(self.display, win_id, attrs);
             win.frame();
-            self.windows.insert(win_id, win);
+            if !focused_window {
+                win.focus();
+                focused_window = true;
+            }
+
+            self.windows.push(win);
         }
 
         self.apply_selected_layout();
@@ -51,10 +54,10 @@ impl<'a> WindowManager<'a> {
         Ok(len)
     }
 
-    pub fn grab_keys(&self) {}
+    pub fn grab_events(&self) {}
 
     pub fn run(&mut self) -> Result<(), String> {
-        self.grab_keys();
+        self.grab_events();
 
         loop {
             match self.display.next_event() {
@@ -67,7 +70,7 @@ impl<'a> WindowManager<'a> {
     }
 
     fn apply_selected_layout(&mut self) {
-        self.layouts[self.selected_layout].apply(Box::new(self.windows.values_mut()));
+        self.layouts[self.selected_layout].apply(Box::new(self.windows.iter_mut()));
     }
 
     fn on_configure_request(&mut self, req: event::ConfigureRequestEvent) {
@@ -88,9 +91,11 @@ impl<'a> WindowManager<'a> {
     fn on_map_request(&mut self, req: event::MapRequestEvent) {
         let win_id = req.window;
 
-        if let Some(win) = self.windows.get_mut(&win_id) {
-            win.map();
-            return;
+        for win in self.windows.iter() {
+            if win.id() == win_id {
+                win.map();
+                return;
+            }
         }
 
         if let Ok(attrs) = self.display.get_window_attributes(win_id) {
@@ -98,7 +103,7 @@ impl<'a> WindowManager<'a> {
                 let mut win = window::Window::new(self.display, win_id, attrs);
                 win.frame();
                 win.map();
-                self.windows.insert(win_id, win);
+                self.windows.push(win);
             }
         }
 
@@ -111,8 +116,15 @@ impl<'a> WindowManager<'a> {
         }
 
         let win_id = req.window;
-        if let Some(mut win) = self.windows.remove(&win_id) {
+
+        if let Some((i, win)) = self
+            .windows
+            .iter_mut()
+            .enumerate()
+            .find(|(_, win)| win.id() == win_id)
+        {
             win.unframe();
+            self.windows.remove(i);
         }
 
         self.apply_selected_layout();
