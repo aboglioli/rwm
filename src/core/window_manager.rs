@@ -1,21 +1,23 @@
+use std::rc::Rc;
+
 use crate::core::{
     event::{self, Event},
     layout, window, x,
 };
 
-pub struct WindowManager<'a> {
-    display: &'a x::Display,
+pub struct WindowManager {
+    display: Rc<x::Display>,
 
-    windows: Vec<window::Window<'a>>,
+    windows: Vec<window::Window>,
 
     layouts: Vec<Box<dyn layout::Layout>>,
     selected_layout: usize,
 }
 
-impl<'a> WindowManager<'a> {
-    pub fn new(display: &x::Display) -> WindowManager {
+impl WindowManager {
+    pub fn new(display: x::Display) -> WindowManager {
         WindowManager {
-            display,
+            display: Rc::new(display),
 
             windows: Vec::new(),
 
@@ -39,8 +41,7 @@ impl<'a> WindowManager<'a> {
                 continue;
             }
 
-            let mut win = window::Window::new(self.display, win_id, attrs);
-            win.frame();
+            let mut win = window::Window::new(&self.display, win_id, attrs);
             if !focused_window {
                 win.focus();
                 focused_window = true;
@@ -85,7 +86,8 @@ impl<'a> WindowManager<'a> {
         };
 
         if let Some(win) = self.windows.iter_mut().find(|win| win.id() == req.window) {
-            self.display.configure_window(win.frame(), req.value_mask, &mut changes);
+            self.display
+                .configure_window(win.frame(), req.value_mask, &mut changes);
         }
 
         self.display
@@ -102,8 +104,7 @@ impl<'a> WindowManager<'a> {
 
         if let Ok(attrs) = self.display.get_window_attributes(win_id) {
             if attrs.override_redirect > 0 || attrs.map_state != x::IS_VIEWABLE {
-                let mut win = window::Window::new(self.display, win_id, attrs);
-                win.frame();
+                let win = window::Window::new(&self.display, win_id, attrs);
                 win.map();
                 self.windows.push(win);
             }
@@ -125,7 +126,6 @@ impl<'a> WindowManager<'a> {
             .enumerate()
             .find(|(_, win)| win.id() == win_id)
         {
-            win.unframe();
             self.windows.remove(i);
         }
 

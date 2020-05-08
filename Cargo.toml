@@ -9,3 +9,4 @@ xlib = []
 
 [dependencies]
 x11 = { version = "2.18.2", features = ["xlib"] }
+tokio = { version = "0.2", features = ["full"] }

@@ -19,3 +19,7 @@ pub extern "C" fn error_handler(_: *mut xlib::Display, err: *mut xlib::XErrorEve
 pub fn last_error() -> u8 {
     unsafe { LAST_ERROR_CODE }
 }
+
+pub struct Error {
+    message: String,
+}
