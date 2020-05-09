@@ -1,3 +1,5 @@
+use std::error;
+use std::fmt;
 use x11::xlib;
 
 /**
@@ -20,6 +22,23 @@ pub fn last_error() -> u8 {
     unsafe { LAST_ERROR_CODE }
 }
 
+#[derive(Debug)]
 pub struct Error {
     message: String,
+}
+
+impl Error {
+    fn new(message: &str) -> Self {
+        Error {
+            message: message.to_string(),
+        }
+    }
+}
+
+impl error::Error for Error {}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
 }

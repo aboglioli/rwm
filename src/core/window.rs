@@ -1,21 +1,29 @@
 use std::rc::Rc;
 use x11::xlib;
 
-use crate::core::{config, x};
+use crate::core::{config, node, x};
 
 pub type WindowID = u64;
 pub type WindowAttributes = xlib::XWindowAttributes;
 pub type WindowChanges = xlib::XWindowChanges;
+
+pub struct Position {
+    x: i32,
+    y: i32,
+}
+
+pub struct Size {
+    width: u32,
+    height: u32,
+}
 
 pub struct Window {
     // Open display
     display: Rc<x::Display>,
 
     id: WindowID,
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
+    position: Position,
+    size: Size,
 
     focused: bool,
     marked: bool,
@@ -45,22 +53,26 @@ impl Window {
         Window {
             display: Rc::clone(display),
             id,
-            x: attrs.x,
-            y: attrs.y,
-            width: attrs.width as u32,
-            height: attrs.height as u32,
+            position: Position {
+                x: attrs.y,
+                y: attrs.y,
+            },
+            size: Size {
+                width: attrs.width as u32,
+                height: attrs.height as u32,
+            },
             focused: false,
             marked: false,
             frame,
         }
     }
 
-    pub fn id(&self) -> WindowID {
-        self.id
+    pub fn position(&self) -> &Position {
+        &self.position
     }
 
-    pub fn attrs(&self) -> (i32, i32, u32, u32) {
-        (self.x, self.y, self.width, self.height)
+    pub fn size(&self) -> &Size {
+        &self.size
     }
 
     pub fn frame(&self) -> WindowID {
@@ -74,53 +86,61 @@ impl Window {
         self.display.remove_from_save_set(self.id);
         self.display.destroy_window(self.frame);
     }
+}
 
-    pub fn set_position(&mut self, x: i32, y: i32) {
-        self.x = x;
-        self.y = y;
+impl node::Node for Window {
+    fn id(&self) -> node::NodeID {
+        self.id
+    }
+
+    fn is(&self, id: node::NodeID) -> bool {
+        self.id() == id
+    }
+
+    fn set_position(&mut self, x: i32, y: i32) {
+        self.position = Position { x, y };
         self.display.move_window(self.frame, x, y);
     }
 
-    pub fn set_size(&mut self, w: u32, h: u32) {
-        let w = w - 2 * config::BORDER_WIDTH;
-        let h = h - 2 * config::BORDER_WIDTH;
+    fn set_size(&mut self, width: u32, height: u32) {
+        let width = width - 2 * config::BORDER_WIDTH;
+        let height = height - 2 * config::BORDER_WIDTH;
 
-        self.width = w;
-        self.height = h;
+        self.size = Size { width, height };
 
-        self.display.resize_window(self.frame, w, h);
-        self.display.resize_window(self.id, w, h);
+        self.display.resize_window(self.frame, width, height);
+        self.display.resize_window(self.id, width, height);
     }
 
-    pub fn focus(&mut self) {
+    fn focus(&mut self) {
         self.focused = true;
         self.display
             .set_window_border(self.frame, config::FOCUSED_BORDER_COLOR);
     }
 
-    pub fn unfocus(&mut self) {
+    fn unfocus(&mut self) {
         self.focused = false;
         self.display
             .set_window_border(self.frame, config::BORDER_COLOR);
     }
 
-    pub fn mark(&mut self) {
+    fn mark(&mut self) {
         self.marked = true;
         self.display
             .set_window_border(self.frame, config::MARKED_BORDER_COLOR);
     }
 
-    pub fn unmark(&mut self) {
+    fn unmark(&mut self) {
         self.marked = false;
         self.display
             .set_window_border(self.frame, config::BORDER_COLOR);
     }
 
-    pub fn map(&self) {
+    fn map(&self) {
         self.display.map_window(self.id);
     }
 
-    pub fn reparent(&self, parent: WindowID) {
+    fn reparent(&self, parent: WindowID) {
         self.display.reparent_window(self.id, parent, 0, 0);
     }
 }

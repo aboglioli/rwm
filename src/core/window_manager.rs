@@ -2,13 +2,15 @@ use std::rc::Rc;
 
 use crate::core::{
     event::{self, Event},
-    layout, window, x,
+    layout, node,
+    node::Node,
+    window, x,
 };
 
 pub struct WindowManager {
     display: Rc<x::Display>,
 
-    windows: Vec<window::Window>,
+    windows: Vec<Box<dyn node::Node>>,
 
     layouts: Vec<Box<dyn layout::Layout>>,
     selected_layout: usize,
@@ -23,9 +25,9 @@ impl WindowManager {
 
             layouts: vec![
                 Box::new(layout::ColumnLayout(800, 600)),
-                Box::new(layout::RowLayout(800, 600)),
+                // Box::new(layout::RowLayout(800, 600)),
             ],
-            selected_layout: 1,
+            selected_layout: 0,
         }
     }
 
@@ -47,7 +49,7 @@ impl WindowManager {
                 focused_window = true;
             }
 
-            self.windows.push(win);
+            self.windows.push(Box::new(win));
         }
 
         self.apply_selected_layout();
@@ -71,7 +73,7 @@ impl WindowManager {
     }
 
     fn apply_selected_layout(&mut self) {
-        self.layouts[self.selected_layout].apply(Box::new(self.windows.iter_mut()));
+        self.layouts[self.selected_layout].apply(&mut self.windows.iter_mut());
     }
 
     fn on_configure_request(&mut self, req: event::ConfigureRequestEvent) {
@@ -85,9 +87,9 @@ impl WindowManager {
             stack_mode: req.detail,
         };
 
-        if let Some(win) = self.windows.iter_mut().find(|win| win.id() == req.window) {
-            self.display
-                .configure_window(win.frame(), req.value_mask, &mut changes);
+        if let Some(_) = self.windows.iter_mut().find(|win| win.id() == req.window) {
+            // self.display
+            //     .configure_window(win.frame(), req.value_mask, &mut changes);
         }
 
         self.display
@@ -106,7 +108,7 @@ impl WindowManager {
             if attrs.override_redirect > 0 || attrs.map_state != x::IS_VIEWABLE {
                 let win = window::Window::new(&self.display, win_id, attrs);
                 win.map();
-                self.windows.push(win);
+                self.windows.push(Box::new(win));
             }
         }
 
@@ -120,7 +122,7 @@ impl WindowManager {
 
         let win_id = req.window;
 
-        if let Some((i, win)) = self
+        if let Some((i, _)) = self
             .windows
             .iter_mut()
             .enumerate()
